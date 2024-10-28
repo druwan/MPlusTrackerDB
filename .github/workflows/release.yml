@@ -1,0 +1,65 @@
+name: Update Tag
+
+on:
+  push:
+    branches:
+      - main
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch All Tags
+        run: git fetch --tags
+
+      - name: Get Next Version
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+
+      - name: Get Latest Tag
+        id: get_latest_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 --always 2>/dev/null || echo "v.0.0.1")
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Get Commits
+        id: get_commit_messages
+        run: |
+          # If no tag, use all commits
+          if [ -z "${{ steps.get_latest_tag.outputs.latest_tag }}" ]; then
+            commits=$(git log --pretty=format:"%s" HEAD)
+          else
+            commits=$(git log --pretty=format:"%s" ${{ steps.get_latest_tag.outputs.latest_tag }}..HEAD)
+          fi
+          echo "Commits:"
+          echo "$commits"
+          commits_escaped=$(echo "$commits" | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "messages=$commits_escaped" >> $GITHUB_OUTPUT
+
+      - name: Create and Push Tag with Message
+        uses: fregante/setup-git-user@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Ensure authentication for git push
+      - run: |
+          # Use the next version as the tag
+          new_tag=${{ steps.semver.outputs.next }}
+
+          # Use printf to insert a newline into the tag message
+          tag_message=$(printf "Changes since last commit:\n${{ steps.get_commit_messages.outputs.messages }}")
+
+          # Set up Git user information using secrets
+          git config user.name ${{ secrets.USERNAME }}
+          git config user.email ${{ secrets.EMAIL}}
+
+          # Create the tag with the custom message
+          git tag -a "$new_tag" -m "$tag_message"
+
+          # Push the tag to the repository
+          git push origin "$new_tag"
