@@ -15,7 +15,7 @@ def convert_lua_to_json(lua_file_path, json_output_path):
     lua = LuaRuntime(unpack_returned_tuples=True)
 
     # Load Lua file content
-    with open(lua_file_path, "r") as lua_file:
+    with open(lua_file_path, "r", encoding="utf-8") as lua_file:
         lua_content = lua_file.read()
 
     # Execute the Lua script to get the table in Lua's global environment
@@ -53,8 +53,8 @@ def convert_lua_to_json(lua_file_path, json_output_path):
     mpt_db_dict = lua_table_to_dict(mpt_db)
 
     # Save the converted data to JSON format
-    with open(json_output_path, "w") as json_file:
-        json.dump(mpt_db_dict, json_file, indent=2)
+    with open(json_output_path, "w", encoding="utf-8") as json_file:
+        json.dump(mpt_db_dict, json_file, indent=2, ensure_ascii=False)
 
     print(f"Conversion completed. Data saved as {json_output_path}.")
 
