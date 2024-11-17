@@ -1,6 +1,5 @@
 import json
 import os
-import uuid
 
 import polars as pl
 import psycopg2
@@ -9,6 +8,14 @@ from psycopg2 import sql
 from psycopg2.extras import execute_values
 
 load_dotenv()
+
+conn = psycopg2.connect(
+    dbname="postgres",
+    user=os.getenv("DBUSER"),
+    password=os.getenv("DBPASSWD"),
+    host=os.getenv("DBHOST"),
+    port=os.getenv("DBPORT"),
+)
 
 
 def db_exists():
@@ -71,8 +78,7 @@ def create_db():
 
 
 def load_data_to_db(json_file_path):
-    """ """
-    # Load data
+    """Load data from JSON into the db"""
     with open(json_file_path, "r") as f:
         data = json.load(f)
 
@@ -109,7 +115,7 @@ def load_data_to_db(json_file_path):
         role TEXT,
         name TEXT,
         class TEXT,
-        spec TEXT      
+        spec TEXT 
         );
         """,
     ]
@@ -118,6 +124,9 @@ def load_data_to_db(json_file_path):
     for query in create_db_tables:
         cursor.execute(query)
     conn.commit()
+
+    # Ensure constraint
+    ensure_unique_constraint(conn)
 
     # Insert data into the 'runs' table
     runs_data = [
@@ -131,16 +140,22 @@ def load_data_to_db(json_file_path):
         for run in data["runs"]
     ]
 
-    run_ids = [str(uuid.uuid4()) for _ in range(len(runs_data))]
-
-    execute_values(
-        cursor,
-        """
-        INSERT INTO runs (id, completion_time, affix_names, level, map_name, start_time)
-        VALUES %s;
-        """,
-        [(run_id, *run) for run_id, run in zip(run_ids, runs_data)],
-    )
+    run_ids = []
+    for run in runs_data:
+        cursor.execute(
+            """
+            INSERT INTO runs (completion_time, affix_names, level, map_name, start_time)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (start_time) DO UPDATE
+            SET completion_time = EXCLUDED.completion_time,
+                affix_names = EXCLUDED.affix_names,
+                level = EXCLUDED.level,
+                map_name = EXCLUDED.map_name
+            RETURNING id;
+            """,
+            run,
+        )
+        run_ids.append(cursor.fetchone()[0])
 
     # Prepare party data
     party_records = []
@@ -159,9 +174,10 @@ def load_data_to_db(json_file_path):
     execute_values(
         cursor,
         """
-    INSERT INTO party (run_id, role, name, class, spec)
-    VALUES %s;
-    """,
+        INSERT INTO party (run_id, role, name, class, spec)
+        VALUES %s
+        ON CONFLICT DO NOTHING;
+        """,
         party_records,
     )
 
@@ -169,3 +185,33 @@ def load_data_to_db(json_file_path):
     cursor.close()
     conn.close()
     print(f"db {os.getenv("DBNAME")} populated")
+
+
+def ensure_unique_constraint(conn):
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+            SELECT conname
+            FROM pg_constraint
+            WHERE conrelid = 'runs'::regclass 
+                AND contype = 'u' 
+                AND conname = 'unique_start_time';
+        """
+    )
+    constraint_exists = cursor.fetchone()
+
+    if not constraint_exists:
+        # Add constraint
+        cursor.execute(
+            """
+                ALTER TABLE runs
+                ADD CONSTRAINT unique_start_time UNIQUE (start_time);
+            """
+        )
+        print("Unique constraint added to 'start_time' col.")
+    else:
+        print("Unique constraint on 'start_time' already exists.")
+
+    conn.commit()
+    cursor.close()
