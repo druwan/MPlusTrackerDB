@@ -3,10 +3,11 @@ import os
 
 import polars as pl
 from dotenv import load_dotenv
-from psycopg import connect,sql
+from psycopg import connect, sql
 from psycopg.errors import UniqueViolation
 
 load_dotenv()
+
 
 def db_exists():
     """
@@ -14,7 +15,7 @@ def db_exists():
     Returns True if it exists, False otherwise.
     """
     try:
-         with connect(
+        with connect(
             dbname="postgres",
             user=os.getenv("DBUSER"),
             password=os.getenv("DBPASSWD"),
@@ -58,7 +59,7 @@ def ensure_unique_constraint(conn):
     """
     Ensure the unique constraint on the 'runs' table.
     """
-    with conn.cursor as cursor:
+    with conn.cursor() as cursor:
         cursor.execute(
             """
                 SELECT conname
@@ -119,7 +120,7 @@ def load_data_to_db(json_file_path):
             """,
         ]
 
-        with conn.cursor() as cursor:# Create tables
+        with conn.cursor() as cursor:  # Create tables
             for query in create_db_tables:
                 cursor.execute(query)
             conn.commit()
@@ -181,4 +182,3 @@ def load_data_to_db(json_file_path):
             )
             conn.commit()
         print(f"db {os.getenv("DBNAME")} populated")
-
