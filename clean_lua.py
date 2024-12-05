@@ -3,6 +3,10 @@ import json
 from lupa import LuaRuntime
 
 
+def clean_name(name):
+    return name.rstrip("*").strip()
+
+
 # Define the recursive conversion function
 def lua_table_to_dict(lua_table):
     if lua_table is None:
@@ -52,6 +56,11 @@ def convert_lua_to_json(lua_file_path, json_output_path):
 
     # Convert MPT_DB from Lua to a Python dictionary
     mpt_db_dict = lua_table_to_dict(mpt_db)
+
+    # Clean names
+    for run in mpt_db_dict.get("runs", []):
+        for party_member in run.get("party", []):
+            party_member["name"] = clean_name(party_member["name"])
 
     # Save the converted data to JSON format
     with open(json_output_path, "w", encoding="utf-8") as json_file:
