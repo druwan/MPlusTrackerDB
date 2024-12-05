@@ -3,6 +3,31 @@ import json
 from lupa import LuaRuntime
 
 
+# Define the recursive conversion function
+def lua_table_to_dict(lua_table):
+    if lua_table is None:
+        return None
+    if isinstance(lua_table, (int, float, str, bool)):
+        return lua_table
+
+    # Check for integer keys to detect array-like tables
+    max_int_key = max(lua_table.keys(), default=0)
+    is_array = all(
+        isinstance(key, int) and 1 <= key <= max_int_key for key in lua_table.keys()
+    )
+
+    # Handle as list if array-like
+    if is_array:
+        return [lua_table_to_dict(lua_table[i]) for i in range(1, max_int_key + 1)]
+    else:
+        # Handle as dictionary if not array-like, skipping unwanted keys
+        return {
+            str(k): lua_table_to_dict(v)
+            for k, v in lua_table.items()
+            if k not in ["started", "incomplete", "completed"]
+        }
+
+
 def convert_lua_to_json(lua_file_path, json_output_path):
     """
     Converts a Lua table from a given Lua file to JSON, excluding specific keys.
@@ -24,30 +49,6 @@ def convert_lua_to_json(lua_file_path, json_output_path):
 
     # Access the MPT_DB table in Lua
     mpt_db = lua.globals().MPT_DB
-
-    # Define the recursive conversion function
-    def lua_table_to_dict(lua_table):
-        if lua_table is None:
-            return None
-        if isinstance(lua_table, (int, float, str, bool)):
-            return lua_table
-
-        # Check for integer keys to detect array-like tables
-        max_int_key = max(lua_table.keys(), default=0)
-        is_array = all(
-            isinstance(key, int) and 1 <= key <= max_int_key for key in lua_table.keys()
-        )
-
-        # Handle as list if array-like
-        if is_array:
-            return [lua_table_to_dict(lua_table[i]) for i in range(1, max_int_key + 1)]
-        else:
-            # Handle as dictionary if not array-like, skipping unwanted keys
-            return {
-                str(k): lua_table_to_dict(v)
-                for k, v in lua_table.items()
-                if k not in ["started", "incomplete", "completed"]
-            }
 
     # Convert MPT_DB from Lua to a Python dictionary
     mpt_db_dict = lua_table_to_dict(mpt_db)
