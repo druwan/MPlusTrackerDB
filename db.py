@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 from psycopg import connect, sql
 from psycopg.errors import UniqueViolation
 
-load_dotenv()
 
+load_dotenv()
 
 def db_exists():
     """
