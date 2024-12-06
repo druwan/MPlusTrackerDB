@@ -3,6 +3,7 @@ lupa==2.2
 numpy==2.1.3
 polars==1.14.0
 psycopg==3.2.3
+psycopg-binary==3.2.3
 pyarrow==18.1.0
 python-dotenv==1.0.1
 typing_extensions==4.12.2
