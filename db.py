@@ -1,13 +1,12 @@
 import json
 import os
 
-import polars as pl
 from dotenv import load_dotenv
 from psycopg import connect, sql
 from psycopg.errors import UniqueViolation
 
-
 load_dotenv()
+
 
 def db_exists():
     """
@@ -84,9 +83,6 @@ def load_data_to_db(json_file_path):
     """Load data from JSON into the db"""
     with open(json_file_path, "r") as f:
         data = json.load(f)
-
-    # Load data into Polars DF
-    runs_data = pl.DataFrame(data["runs"])
 
     # Connect to db
     with connect(
@@ -175,7 +171,7 @@ def load_data_to_db(json_file_path):
             cursor.executemany(
                 """
                 INSERT INTO party (run_id, role, name, class, spec)
-                VALUES %s
+                VALUES (%s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING;
                 """,
                 party_records,
