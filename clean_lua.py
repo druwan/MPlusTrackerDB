@@ -32,7 +32,7 @@ def lua_table_to_dict(lua_table):
         }
 
 
-def convert_lua_to_json(lua_file_path, json_output_path):
+def convert_lua_to_json(lua_file_path="MPlusTracker.lua", json_output_path="MPlusTracker.json"):
     """
     Converts a Lua table from a given Lua file to JSON, excluding specific keys.
 
