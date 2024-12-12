@@ -1,5 +1,7 @@
 import json
 import os
+from datetime import datetime, timedelta
+import time
 
 from dotenv import load_dotenv
 from psycopg import connect, sql
@@ -45,11 +47,30 @@ def create_db():
             host=os.getenv("DBHOST"),
             port=os.getenv("DBPORT"),
         ) as conn:
+            conn.autocommit = True
             with conn.cursor() as cursor:
                 cursor.execute(
                     sql.SQL("CREATE DATABASE {};").format(sql.Identifier(new_db))
                 )
                 print("db created")
+        for _ in range(5):
+            try:
+                # Try to connect to the new database
+                with connect(
+                    dbname=new_db,
+                    user=os.getenv("DBUSER"),
+                    password=os.getenv("DBPASSWD"),
+                    host=os.getenv("DBHOST"),
+                    port=os.getenv("DBPORT"),
+                ) as conn:
+                    print(f"Successfully connected to the {new_db} database.")
+                    return  # Exit if the connection is successful
+            except Exception as e:
+                print(f"Waiting for database {new_db} to be ready... Retrying...")
+                time.sleep(2)  # Wait for 2 seconds before retrying
+        raise Exception(
+            f"Failed to connect to the {new_db} database after multiple attempts."
+        )
     except Exception as e:
         print(f"Error creating db: {e}")
 
@@ -101,7 +122,8 @@ def load_data_to_db(json_file_path):
                 affix_names TEXT,
                 level INT,
                 map_name TEXT,
-                start_time TIMESTAMP
+                start_time TIMESTAMP,
+                completion_timestamp TIMESTAMP
             );
             """,
             """
@@ -129,10 +151,18 @@ def load_data_to_db(json_file_path):
         with conn.cursor() as cursor:
             for run in data["runs"]:
                 try:
+                    start_time = datetime.strptime(
+                        run["startTime"], "%Y-%m-%d %H:%M:%S"
+                    )
+                    completion_time = run["completionTime"] / 1000
+                    completion_timestamp = start_time + timedelta(
+                        seconds=completion_time
+                    )
+
                     cursor.execute(
                         """
-                        INSERT INTO runs (completion_time, affix_names, level, map_name, start_time)
-                        VALUES (%s, %s, %s, %s, %s)
+                        INSERT INTO runs (completion_time, affix_names, level, map_name, start_time, completion_timestamp)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                         ON CONFLICT (start_time) DO UPDATE
                         SET completion_time = EXCLUDED.completion_time,
                             affix_names = EXCLUDED.affix_names,
@@ -145,7 +175,8 @@ def load_data_to_db(json_file_path):
                             run["affixNames"],
                             run["level"],
                             run["mapName"],
-                            run["startTime"],
+                            start_time,
+                            completion_timestamp,
                         ),
                     )
                     run_ids.append(cursor.fetchone()[0])
