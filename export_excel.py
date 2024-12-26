@@ -23,7 +23,7 @@ def get_class_color_map():
 
 
 def create_excel(
-    json_file_path="MPlusTracker.json", excel_output_path="MPlusTracker.xlsx"
+    json_file_path="./MPlusTracker.json", excel_output_path="MPlusTracker.xlsx"
 ):
     MY_CHARS = ["Drwn", "Podcast", "Samahan"]
     # Extract Data
