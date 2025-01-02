@@ -1,7 +1,7 @@
 import json
 import os
-from datetime import datetime, timedelta
 import time
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 from psycopg import connect, sql
@@ -66,7 +66,7 @@ def create_db():
                     print(f"Successfully connected to the {new_db} database.")
                     return  # Exit if the connection is successful
             except Exception as e:
-                print(f"Waiting for database {new_db} to be ready... Retrying...")
+                print(f"Error {e} connecting to {new_db} to be ready... Retrying...")
                 time.sleep(2)  # Wait for 2 seconds before retrying
         raise Exception(
             f"Failed to connect to the {new_db} database after multiple attempts."
