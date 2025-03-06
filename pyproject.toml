@@ -1,0 +1,10 @@
+[project]
+name = "mplustrackerdb"
+version = "2.0.0"
+description = "MPlusTrackerDB"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "psycopg[binary]>=3.2.5",
+    "slpp>=1.2.3",
+]
